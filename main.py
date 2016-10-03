@@ -3,8 +3,8 @@ import requests
 #
 # URL for getting the scoreboard info
 # http://games.espn.com/ffl/api/v2/scoreboard2?leagueId=212084&matchupPeriodId=4&includeTopScorer=true&rand=44868
-
 #
+
 LEAGUE_ID = 212084
 WEEK_ID = 4
 
