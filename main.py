@@ -24,8 +24,8 @@ def get_espn_ff_scores( in_league_id, in_week_id ):
 	scores = ''
 
 	for matchup in json_raw[ 'scoreboard'][ 'matchups' ]:
-		for T in matchup[ 'teams' ]:
-			scores += '{} {} scored {}\n'.format( T[ 'team' ][ 'teamLocation' ], T[ 'team' ][ 'teamNickname' ], T[ 'score' ] )
+		for team in matchup[ 'teams' ]:
+			scores += '{} {} scored {}\n'.format( team[ 'team' ][ 'teamLocation' ], team[ 'team' ][ 'teamNickname' ], team[ 'score' ] )
 		scores += '\n'
 
 	return '<pre>{}</pre>'.format( scores )
