@@ -3,8 +3,8 @@ import json
 import requests
 
 from flask import Flask
-from flask import request
-from flask import make_response
+from flask import request as flask_request
+from flask import make_response as flask_make_response
 
 from ffs_config import valid_slack_token
 from ffs_config import valid_slack_commands
@@ -53,30 +53,30 @@ def index():
 @app.route( '/reticlesonyateticles', methods=[ 'POST' ] )
 def reticles():
 	# validate request based on token
-	requesting_slack_token = request.form[ 'token' ]
+	requesting_slack_token = flask_request.form[ 'token' ]
 	if not requesting_slack_token == valid_slack_token:
-		fail_response = make_response( json.dumps( fail_response_message ) )
+		fail_response = flask_make_response( json.dumps( fail_response_message ) )
 		fail_response.headers[ 'Content-type' ] = 'application/json'
 		return fail_response
 
 	# validate command
-	command = request.form[ 'command' ]
+	command = flask_request.form[ 'command' ]
 	if not command in valid_slack_commands:
-		fail_command_response = make_response( json.dumps( fail_command_message ) )
+		fail_command_response = flask_make_response( json.dumps( fail_command_message ) )
 		fail_command_response.headers[ 'Content-type' ] = 'application/json'
 		return fail_command_response
 
-	params = request.form[ 'text' ].split()
+	params = flask_request.form[ 'text' ].split()
 
 	# help response
 	if 'help' in params:
-		help_response = make_response( json.dumps( help_message ) )
+		help_response = flask_make_response( json.dumps( help_message ) )
 		help_response.headers[ 'Content-type' ] = 'application/json'
 		return help_response
 
 	# actual response
 	week_id = int( params[0] )
-	success_response = make_response( json.dumps( success_message ) )
+	success_response = flask_make_response( json.dumps( success_message ) )
 	success_response.headers[ 'Content-type' ] = 'application/json'
 	return success_response
 
