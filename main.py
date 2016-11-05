@@ -9,6 +9,7 @@ from flask import make_response as flask_make_response
 from ffs_config import valid_slack_token
 from ffs_config import valid_slack_commands
 from ffs_config import valid_url
+from ffs_config import league_id 
 
 # NOTE(omar): required in order to use requests lib in Google App Engine
 # Use the App Engine Requests adapter. This makes sure that Requests uses URLFetch.
@@ -24,6 +25,9 @@ def get_espn_ff_scores( in_league_id, in_week_id ):
 	scoreboard_url = valid_url.format( in_league_id, in_week_id )
 	r = requests.post( scoreboard_url )
 
+	logging.info( r.status_code )
+	logging.info( r.text )
+
 	json_raw = r.json()
 
 	scores = ''
@@ -38,47 +42,90 @@ def get_espn_ff_scores( in_league_id, in_week_id ):
 #
 # useful response stuff
 #
-fail_response_message = { 'response_type' : 'ephemeral', 'text' : 'Invalid request. Can only be called from #reticlesonyateticles' }
-fail_command_message = { 'response_type' : 'ephemeral', 'text' : 'Invalid command' }
+basic_200_response = { 'response_type' : 'ephemeral', 'text' : 'huzzah' }
+fail_response_message = { 'response_type' : 'ephemeral', 'text' : 'Invalid request' }
 success_message = { 'response_type' : 'ephemeral', 'text' : 'Huzzah! Scores!!' }
-help_message = { 'response_type' : 'ephemeral', 'text' : 'How to use /ff', 'attachments' : [ { 'text' : '/ff [week] => returns the scores for that week' } ] }
+help_message = { 'response_type' : 'ephemeral', 'text' : 'How to use /itoys', 'attachments' : [ { 'text' : '/itoys [command] [param1] ... [paramN]' } ] }
+
+#
+# slack command functions
+#
+def itoys_main( func, args ):
+	logging.info( 'func={}, args={}'.format( func.__name__, args ) )
+	if not args is None:
+		args_list = args.split()
+		return func( *args_list )
+	else:
+		return func()
+
+def itoys_fail():
+	response = flask_make_response( json.dumps( fail_response_message ) )
+	response.headers[ 'Content-type' ] = 'application/json'
+	return response
+
+def itoys_help():
+	return help_message
+
+def itoys_reticlesonyateticles_scores( week_id, blah_param, param1 ):
+	print 'week_id={}, blah_param={}, param1={}'.format( week_id, blah_param, param1 )
+	scoreboard_url = valid_url.format( league_id, week_id )
+	scores_text = scoreboard_url # get_espn_ff_scores( league_id, week_id )
+	scores_message = { 'response_type' : 'ephemeral', 'text' : 'Scores for Week {}'.format( week_id ), 'attachments' : [ { 'text' : scores_text } ] }
+	return scores_message 
+
+#
+# slack command mappings
+#
+itoys_commands = {
+	'help' : itoys_help,
+	'scores' : itoys_reticlesonyateticles_scores,
+}
 
 #
 # endpoints
 #
 @app.route( '/' )
 def index():
-	return 'hello there'
+	response = flask_make_response( json.dumps( basic_200_response ) )
+	response.headers[ 'Content-type' ] = 'application/json'
+	return response
 
-@app.route( '/reticlesonyateticles', methods=[ 'POST' ] )
-def reticles():
-	# validate request based on token
-	requesting_slack_token = flask_request.form[ 'token' ]
-	if not requesting_slack_token == valid_slack_token:
-		fail_response = flask_make_response( json.dumps( fail_response_message ) )
-		fail_response.headers[ 'Content-type' ] = 'application/json'
-		return fail_response
+#
+# Industrial Toys slack commands
+#
+# /itoys [command] [param1] ... [paramN]
+@app.route( '/itoys', methods=[ 'POST' ] )
+def itoys():
+	# validate calling token
+	token = flask_request.form[ 'token' ]
+	if not token == valid_slack_token:
+		return itoys_fail()
 
-	# validate command
+	# parse command ... remove the starting slash
 	command = flask_request.form[ 'command' ]
-	if not command in valid_slack_commands:
-		fail_command_response = flask_make_response( json.dumps( fail_command_message ) )
-		fail_command_response.headers[ 'Content-type' ] = 'application/json'
-		return fail_command_response
+	command = command[ 1 : ]
+	if not command == 'itoys':
+		return itoys_fail()
 
-	params = flask_request.form[ 'text' ].split()
+	# parse arguments ... create a tuple from any args
+	text = flask_request.form[ 'text' ]
+	func_args = text.split()
+	if len( func_args ) > 1:
+		func_key, args = text.split( None, 1 )
+		func_key = func_key.strip()
+	else:
+		func_key = func_args[ 0 ].strip()
+		args = None
 
-	# help response
-	if 'help' in params:
-		help_response = flask_make_response( json.dumps( help_message ) )
-		help_response.headers[ 'Content-type' ] = 'application/json'
-		return help_response
+	func = itoys_commands[ func_key ]
 
-	# actual response
-	week_id = int( params[0] )
-	success_response = flask_make_response( json.dumps( success_message ) )
-	success_response.headers[ 'Content-type' ] = 'application/json'
-	return success_response
+	logging.info( 'text={}, key={}, func={}, args={}'.format( text, func_key, func.__name__, args ) )
+
+	# call command with arguments
+	response_message = itoys_main( func, args )
+	response = flask_make_response( json.dumps( response_message ) )
+	response.headers[ 'Content-type' ] = 'application/json'
+	return response
 
 
 @app.errorhandler( 500 )
