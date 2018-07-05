@@ -77,8 +77,8 @@ def itoys_reticlesonyateticles_scores( week_id, blah_param, param1 ):
 # slack command mappings
 #
 itoys_commands = {
-	'help' : itoys_help,
-	'scores' : itoys_reticlesonyateticles_scores,
+	'help' : { 'handler' : itoys_help, 'delayed_response' : False },
+	'scores' : { 'handler' : itoys_reticlesonyateticles_scores, 'delayed_response' : True }
 }
 
 #
@@ -107,6 +107,8 @@ def itoys():
 	if not command == 'itoys':
 		return itoys_fail()
 
+	# TODO(omar): initialize delayed response
+
 	# parse arguments ... create a tuple from any args
 	text = flask_request.form[ 'text' ]
 	func_args = text.split()
@@ -117,7 +119,7 @@ def itoys():
 		func_key = func_args[ 0 ].strip()
 		args = None
 
-	func = itoys_commands[ func_key ]
+	func = itoys_commands[ func_key ][ 'handler' ]
 
 	logging.info( 'text={}, key={}, func={}, args={}'.format( text, func_key, func.__name__, args ) )
 
